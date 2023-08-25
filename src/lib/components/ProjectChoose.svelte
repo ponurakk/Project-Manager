@@ -23,7 +23,7 @@
       </Select.Trigger>
       <Select.Content>
         {#each [...projectCache] as [key, _]}
-          <Select.Item value="{key}">{key}</Select.Item>
+          <Select.Item value={key}>{key}</Select.Item>
         {/each}
       </Select.Content>
     </Select.Root>
@@ -35,8 +35,8 @@
         <Select.Value placeholder="Select Sort Type" />
       </Select.Trigger>
       <Select.Content>
-        <Select.Item value="{SortType.ByName}">By Name</Select.Item>
-        <Select.Item value="{SortType.BySize}">By Size</Select.Item>
+        <Select.Item value={SortType.ByName}>By Name</Select.Item>
+        <Select.Item value={SortType.BySize}>By Size</Select.Item>
       </Select.Content>
     </Select.Root>
   </div>
@@ -47,8 +47,8 @@
         <Select.Value placeholder="Select Sort Type" />
       </Select.Trigger>
       <Select.Content>
-        <Select.Item value="{SortDirection.ASC}" aria-selected>Ascending</Select.Item>
-        <Select.Item value="{SortDirection.DESC}">Descending</Select.Item>
+        <Select.Item value={SortDirection.ASC} aria-selected>Ascending</Select.Item>
+        <Select.Item value={SortDirection.DESC}>Descending</Select.Item>
       </Select.Content>
     </Select.Root>
   </div>
