@@ -7,17 +7,21 @@
   export let config: Config;
   export let projectCache: ProjectCache;
   export let projectDirs: Project[];
+  export let currentPage: number;
 
   $: {
     sortByType(config, projectDirs);
     // this doesn't make any sense but it works so i won't touch it
-    projectDirs = projectDirs
+    projectDirs = projectDirs;
   }
 </script>
 
 <div class="m-auto w-max">
   <div class="inline-block">
-    <Select.Root bind:value={selectedDir} onValueChange={() => projectDirs = selectDirCache(config, projectDirs, projectCache, selectedDir)}>
+    <Select.Root bind:value={selectedDir} onValueChange={() => {
+      projectDirs = selectDirCache(config, projectDirs, projectCache, selectedDir);
+      currentPage = 1;
+    }}>
       <Select.Trigger class="w-[300px]">
         <Select.Value placeholder="Choose cached dir..." />
       </Select.Trigger>
