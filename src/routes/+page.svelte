@@ -30,6 +30,7 @@
   let projectCache: ProjectCache = data.projectCache;
 
   let projectDirs: Project[] = [];
+  let filteredProjectDirs: Project[] = projectDirs;
   let selectedDir: string | null;
   let totalSize: number = 0;
   let filteredProjectsNumber: number = 0;
@@ -64,17 +65,19 @@
       // Set default
       totalSize = 0;
       filteredProjectsNumber = 0;
+      filteredProjectDirs = [];
 
       for (const projectDir of projectDirs) {
         if (projectDir.path.toLowerCase().includes(search.toLowerCase())) {
           totalSize += projectDir.full_build_size;
           filteredProjectsNumber += 1;
+          filteredProjectDirs.push(projectDir)
         }
       }
     }
   }
 
-  $: totalPages = Math.ceil(projectDirs.length / elementsPerPage);
+  $: totalPages = Math.ceil(filteredProjectsNumber / elementsPerPage);
   $: currentPage = currentPageClone;
 </script>
 
@@ -101,7 +104,7 @@
       </Table.Row>
     </Table.Header>
     <Table.Body>
-      {#each projectDirs as projectDir, index}
+      {#each filteredProjectDirs as projectDir, index}
         {#if projectDir.path.toLowerCase().includes(search.toLowerCase()) && index >= (currentPage - 1) * elementsPerPage && index < currentPage * elementsPerPage}
           <Table.Row>
             <Table.Cell class="font-medium">

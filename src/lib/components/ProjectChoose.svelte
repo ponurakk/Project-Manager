@@ -11,7 +11,7 @@
 
   $: {
     sortByType(config, projectDirs);
-    // this doesn't make any sense but it works so i won't touch it
+    // It's because Svelte's reactivity is triggered by assignments
     projectDirs = projectDirs;
   }
 </script>
