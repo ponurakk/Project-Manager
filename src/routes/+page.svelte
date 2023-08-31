@@ -33,6 +33,7 @@
   let projectDirs: Project[] = [];
   let filteredProjectDirs: Project[] = projectDirs;
   let selectedDir: string | null;
+  let selectedDirClone: string | null;
   let totalSize: number = 0;
   let filteredProjectsNumber: number = 0;
   let currentPage: number = 1;
@@ -60,6 +61,8 @@
     selectedDir = await open({
       directory: true,
       multiple: false,
+      // to consider
+      // defaultPath: "/home/"
     }) as string;
 
     try {
@@ -94,16 +97,20 @@
   }
 
   $: totalPages = Math.ceil(filteredProjectsNumber / elementsPerPage);
+
+  // variables are cloned because on update there is no
+  // additional logic being executed when not needed
   $: currentPage = currentPageClone;
+  $: selectedDir = selectedDirClone;
 </script>
 
 <div>
-  <ProjectChoose bind:selectedDir={selectedDir} bind:config={config} bind:projectDirs={projectDirs} bind:projectCache={data.projectCache} bind:currentPage={currentPageClone}/>
+  <ProjectChoose bind:selectedDir={selectedDirClone} bind:config={config} bind:projectDirs={projectDirs} bind:projectCache={data.projectCache} bind:currentPage={currentPageClone}/>
   <div class="m-auto mb-3 w-max">
     <div class="inline-block">
       <Input type="text" placeholder="Search name of the project..." class="max-w-xs" on:input={() => currentPageClone = 1} bind:value={search} />
     </div>
-    <Button variant="default" on:click={selectDirDialog} class="inline-block">Select</Button>
+    <Button variant="default" on:click={selectDirDialog} class="inline-block">Select Directory</Button>
   </div>
 
   {#if !isLoading}
