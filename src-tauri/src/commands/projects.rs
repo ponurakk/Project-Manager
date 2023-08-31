@@ -54,12 +54,16 @@ pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError
                 size,
             }
         }).collect();
+
+        let language = get_language_in_project(key, build_dirs.clone()).to_string();
+
         ret.push(Project {
             name: path.split('/').last().unwrap().to_owned(),
             path,
             full_build_size,
             has_build_dirs,
             build_dirs,
+            language,
         });
     }
 
@@ -112,3 +116,36 @@ fn has_repeating_elements(input: &str) -> bool {
     false
 }
 
+fn get_language_in_project(dir: &String, build_dirs: Vec<ProjectDir>) -> loc::Lang {
+    let mut total: Vec<loc::Lang> = Default::default();
+    let full_project_dirs: Vec<String> = build_dirs.iter().map(|v| v.dir.to_string()).collect();
+
+    // iter over project
+    for entry in WalkDir::new(dir) {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let path_str = path.display().to_string();
+        // check if is in build dir
+        let contains_dir = full_project_dirs.iter()
+            .any(|v| path_str.split("/")
+                .map(std::borrow::ToOwned::to_owned)
+                .collect::<Vec<String>>().contains(v)
+            );
+        if !path.is_dir() && !contains_dir {
+            let lang = loc::lang_from_ext(&path_str);
+            total.push(lang);
+        }
+    }
+
+    let mut total_count: HashMap<loc::Lang, usize> = HashMap::new();
+    // count languages
+    for value in total {
+        *total_count.entry(value).or_default() += 1;
+    }
+    let language = total_count
+        .iter()
+        .filter(|(lang, _count)| **lang != loc::Lang::Unrecognized)
+        .max_by_key(|entry| entry.1).unwrap_or((&loc::Lang::Unrecognized, &0));
+
+    *language.0
+}

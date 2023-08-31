@@ -85,7 +85,7 @@
   <ProjectChoose bind:selectedDir={selectedDir} bind:config={config} bind:projectDirs={projectDirs} bind:projectCache={data.projectCache} bind:currentPage={currentPageClone}/>
   <div class="m-auto mb-3 w-max">
     <div class="inline-block">
-      <Input type="text" placeholder="Search name of the project..." class="max-w-xs" bind:value={search} />
+      <Input type="text" placeholder="Search name of the project..." class="max-w-xs" on:input={() => currentPageClone = 1} bind:value={search} />
     </div>
     <Button variant="default" on:click={selectDirDialog} class="inline-block">Select</Button>
   </div>
@@ -100,6 +100,7 @@
         <Table.Head class="w-[200px]">Name</Table.Head>
         <Table.Head class="w-[200px]">Total Size</Table.Head>
         <Table.Head class="w-[400px]">Build Dirs</Table.Head>
+        <Table.Head class="w-[200px]">Language</Table.Head>
         <Table.Head class="text-right">Actions</Table.Head>
       </Table.Row>
     </Table.Header>
@@ -107,6 +108,7 @@
       {#each filteredProjectDirs as projectDir, index}
         {#if projectDir.path.toLowerCase().includes(search.toLowerCase()) && index >= (currentPage - 1) * elementsPerPage && index < currentPage * elementsPerPage}
           <Table.Row>
+            <!-- Name -->
             <Table.Cell class="font-medium">
 
               <Tooltip.Root>
@@ -117,12 +119,17 @@
               </Tooltip.Root>
 
             </Table.Cell>
+            <!-- Total Size -->
             <Table.Cell>{formatBytes(projectDir.full_build_size)}</Table.Cell>
+            <!-- Build Dirs -->
             <Table.Cell>
               {#each projectDir.build_dirs as dir}
                 <p>{dir.dir} - <strong>{formatBytes(dir.size)}</strong></p>
               {/each}
             </Table.Cell>
+            <!-- Language -->
+            <Table.Cell>{projectDir.language}</Table.Cell>
+            <!-- Actions -->
             <Table.Cell class="text-right">
               <ManageDialog {projectDir}/>
             </Table.Cell>

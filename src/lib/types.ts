@@ -4,6 +4,7 @@ export interface Project {
   full_build_size: number;
   has_build_dirs: boolean;
   build_dirs: ProjectDir[];
+  language: string;
 }
 
 export interface ProjectDir {

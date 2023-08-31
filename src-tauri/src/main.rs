@@ -20,13 +20,13 @@ static PROJECT_TYPES: Lazy<Vec<&str>> = Lazy::new(|| vec![
     "zig-out", // zig
 ]);
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 struct ProjectDir {
     dir: ProjectTypes,
     size: u64,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone, Debug)]
 enum ProjectTypes {
     Git,
     NodeModules,
@@ -58,13 +58,30 @@ impl FromStr for ProjectTypes {
     }
 }
 
-#[derive(Serialize)]
+impl ToString for ProjectTypes {
+    fn to_string(&self) -> String {
+        match *self {
+            Self::Git => ".git".to_owned(),
+            Self::NodeModules => "node_modules".to_owned(),
+            Self::Target => "target".to_owned(),
+            Self::_Build => "_build".to_owned(),
+            Self::Build => "build".to_owned(),
+            Self::Dist => "dist".to_owned(),
+            Self::Vendor => "vendor".to_owned(),
+            Self::Out => "out".to_owned(),
+            Self::ZigOut => "zig-out".to_owned(),
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
 pub struct Project {
     name: String,
     path: String,
     full_build_size: u64,
     has_build_dirs: bool,
     build_dirs: Vec<ProjectDir>,
+    language: String,
 }
 
 fn main() {
