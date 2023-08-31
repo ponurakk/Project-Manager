@@ -1,14 +1,30 @@
+use std::time::Duration;
 use std::{collections::HashMap, str::FromStr};
 
 use fs_extra::dir::get_size;
+use serde::Serialize;
+use tauri::Window;
 use walkdir::WalkDir;
 
 use crate::{Project, AppError, PROJECT_TYPES, ProjectTypes, ProjectDir};
 
+#[derive(Serialize, Clone)]
+struct SearchFilesPayload {
+    message: String,
+}
+
+#[derive(Serialize, Clone)]
+struct LoadingStatusPayload {
+    status: bool,
+    duration: Duration,
+}
+
 #[tauri::command]
-pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError> {
-    println!("started...");
+pub async fn find_projects(project_dir: String, window: Window) -> Result<Vec<Project>, AppError> {
     let start = std::time::Instant::now();
+    window.emit("loading-status", LoadingStatusPayload { status: true, duration: Duration::from_secs(0) }).unwrap();
+    window.emit("search-files", SearchFilesPayload { message: "Searching...".into() }).unwrap();
+
     let mut vector: Vec<String> = list_projects(project_dir);
     let mut ret: Vec<Project> = vec![];
     let mut projects: HashMap<String, Vec<String>> = HashMap::new();
@@ -40,6 +56,11 @@ pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError
     }
 
     for (key, value) in projects.iter() {
+        let path = key.clone();
+        let name = path.split('/').last().unwrap().to_owned();
+
+        window.emit("search-files", SearchFilesPayload { message: format!("Validating file: '{}'...", name).into() }).unwrap();
+
         let mut has_build_dirs = false;
         // if project has only .git dir it means that it isn't built
         if value.ne(&[".git"]) {
@@ -47,7 +68,7 @@ pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError
         }
 
         let mut full_build_size: u64 = 0;
-        let path = key.clone();
+        window.emit("search-files", SearchFilesPayload { message: format!("Fetching build dirs from: '{}'...", name).into() }).unwrap();
 
         // iter over build dirs
         let build_dirs: Vec<ProjectDir> = value.iter().map(|v| {
@@ -59,10 +80,11 @@ pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError
             }
         }).collect();
 
+        window.emit("search-files", SearchFilesPayload { message: format!("Getting language of: '{}'...", name).into() }).unwrap();
         let language = get_language_in_project(key, build_dirs.clone()).to_string();
 
         ret.push(Project {
-            name: path.split('/').last().unwrap().to_owned(),
+            name,
             path,
             full_build_size,
             has_build_dirs,
@@ -72,7 +94,8 @@ pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError
     }
 
     let duration = start.elapsed();
-    println!("finished in {:?}", duration);
+    window.emit("search-files", SearchFilesPayload { message: "Finished.".into() }).unwrap();
+    window.emit("loading-status", LoadingStatusPayload { status: false, duration: start.elapsed() }).unwrap();
     Ok(ret)
 }
 
