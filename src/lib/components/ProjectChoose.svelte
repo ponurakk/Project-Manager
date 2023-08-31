@@ -8,6 +8,7 @@
   export let projectCache: ProjectCache;
   export let projectDirs: Project[];
   export let currentPage: number;
+  export let isLoading: boolean;
 
   $: {
     sortByType(config, projectDirs);
@@ -18,19 +19,30 @@
 
 <div class="m-auto w-max">
   <div class="inline-block">
-    <Select.Root bind:value={selectedDir} onValueChange={() => {
-      projectDirs = selectDirCache(config, projectDirs, projectCache, selectedDir);
-      currentPage = 1;
-    }}>
-      <Select.Trigger class="w-[300px]">
-        <Select.Value placeholder="Choose cached dir..." />
-      </Select.Trigger>
-      <Select.Content>
-        {#each [...projectCache] as [key, _]}
-          <Select.Item value={key}>{key}</Select.Item>
-        {/each}
-      </Select.Content>
-    </Select.Root>
+    {#if !isLoading}
+      <Select.Root bind:value={selectedDir} onValueChange={() => {
+        projectDirs = selectDirCache(config, projectDirs, projectCache, selectedDir);
+        currentPage = 1;
+      }}>
+        <Select.Trigger class="w-[300px]">
+          <Select.Value placeholder="Choose cached dir..." />
+        </Select.Trigger>
+        <Select.Content>
+          {#each [...projectCache] as [key, _]}
+            <Select.Item value={key}>{key}</Select.Item>
+          {/each}
+        </Select.Content>
+      </Select.Root>
+    {:else}
+      <Select.Root disabled>
+        <Select.Trigger class="w-[300px]">
+          <Select.Value placeholder="Choose cached dir..." />
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value="">placeholder</Select.Item>
+        </Select.Content>
+      </Select.Root>
+    {/if}
   </div>
 
   <div class="inline-block mt-3">

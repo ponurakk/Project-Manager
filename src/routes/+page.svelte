@@ -10,6 +10,7 @@
   import ManageDialog from "$lib/components/ManageDialog.svelte";
   import ProjectChoose from "$lib/components/ProjectChoose.svelte";
   import Pagination from "$lib/components/Pagination.svelte";
+  import { Skeleton } from "$lib/components/ui/skeleton";
 
   // utils
   import { formatBytes, sortByType } from "$lib/utils";
@@ -105,30 +106,50 @@
 </script>
 
 <div>
-  <ProjectChoose bind:selectedDir={selectedDirClone} bind:config={config} bind:projectDirs={projectDirs} bind:projectCache={data.projectCache} bind:currentPage={currentPageClone}/>
+  <ProjectChoose 
+    bind:selectedDir={selectedDirClone}
+    bind:config={config}
+    bind:projectDirs={projectDirs}
+    bind:projectCache={data.projectCache}
+    bind:currentPage={currentPageClone}
+    {isLoading}
+  />
   <div class="m-auto mb-3 w-max">
     <div class="inline-block">
       <Input type="text" placeholder="Search name of the project..." class="max-w-xs" on:input={() => currentPageClone = 1} bind:value={search} />
     </div>
-    <Button variant="default" on:click={selectDirDialog} class="inline-block">Select Directory</Button>
+    {#if !isLoading}
+      <Button variant="default" on:click={selectDirDialog} class="inline-block">Select Directory</Button>
+    {:else}
+      <Button variant="default" class="inline-block" disabled>Select Directory</Button>
+    {/if}
   </div>
 
-  {#if !isLoading}
-    <Table.Root class="w-max max-w-[60%] m-auto">
-      <Table.Caption>
-        <Separator class="mb-3"/>
-        Number of projects: {filteredProjectsNumber} of total size: {formatBytes(totalSize)} took {duration}
-      </Table.Caption>
-      <Table.Header>
-        <Table.Row>
-          <Table.Head class="w-[200px]">Name</Table.Head>
-          <Table.Head class="w-[200px]">Total Size</Table.Head>
-          <Table.Head class="w-[400px]">Build Dirs</Table.Head>
-          <Table.Head class="w-[200px]">Language</Table.Head>
-          <Table.Head class="text-right">Actions</Table.Head>
-        </Table.Row>
-      </Table.Header>
-      <Table.Body>
+  {#if isLoading}
+    <div class="w-max m-auto flex items-center justify-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4 animate-spin">
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+      </svg>
+      <p>{loadingMessage}</p>
+    </div>
+  {/if}
+
+  <Table.Root class="w-max max-w-[60%] m-auto">
+    <Table.Caption>
+      <Separator class="mb-3"/>
+      Number of projects: {filteredProjectsNumber} of total size: {formatBytes(totalSize)} took {duration}
+    </Table.Caption>
+    <Table.Header>
+      <Table.Row>
+        <Table.Head class="w-[200px]">Name</Table.Head>
+        <Table.Head class="w-[200px]">Total Size</Table.Head>
+        <Table.Head class="w-[400px]">Build Dirs</Table.Head>
+        <Table.Head class="w-[200px]">Language</Table.Head>
+        <Table.Head class="text-right">Actions</Table.Head>
+      </Table.Row>
+    </Table.Header>
+    <Table.Body>
+      {#if !isLoading}
         {#each filteredProjectDirs as projectDir, index}
           {#if projectDir.path.toLowerCase().includes(search.toLowerCase()) && index >= (currentPage - 1) * elementsPerPage && index < currentPage * elementsPerPage}
             <Table.Row>
@@ -160,17 +181,32 @@
             </Table.Row>
           {/if}
         {/each}
-      </Table.Body>
-    </Table.Root>
+      {:else}
+        {#each Array.from({ length: 4 }) as _}
+          <Table.Row>
+            <!-- Name -->
+            <Table.Cell class="font-medium"><Skeleton class="h-5 w-[81px]" /></Table.Cell>
+            <!-- Total Size -->
+            <Table.Cell><Skeleton class="h-5 w-16" /></Table.Cell>
+            <!-- Build Dirs -->
+            <Table.Cell>
+              <Skeleton class="h-5 w-20" />
+              <Skeleton class="h-5 w-28 mt-1" />
+            </Table.Cell>
+            <!-- Language -->
+            <Table.Cell><Skeleton class="h-5 w-[81px]" /></Table.Cell>
+            <!-- Actions -->
+            <Table.Cell class="text-right">
+              <Skeleton class="h-9 w-[81px]" />
+            </Table.Cell>
+          </Table.Row>
+        {/each}
+      {/if}
+    </Table.Body>
+  </Table.Root>
+  {#if !isLoading}
+    <Pagination bind:currentPage={currentPageClone} {totalPages}/>
   {:else}
-    <div class="w-max m-auto">
-      <div class="inline-block">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon lucide lucide-loader-2 mr-2 h-4 w-4 animate-spin">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
-        </svg>
-      </div>
-      <p class="inline-block">{loadingMessage}</p>
-    </div>
+    <Pagination currentPage={1} totalPages={1}/>
   {/if}
-  <Pagination bind:currentPage={currentPageClone} {totalPages}/>
 </div>
