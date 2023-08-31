@@ -7,6 +7,8 @@ use crate::{Project, AppError, PROJECT_TYPES, ProjectTypes, ProjectDir};
 
 #[tauri::command]
 pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError> {
+    println!("started...");
+    let start = std::time::Instant::now();
     let mut vector: Vec<String> = list_projects(project_dir);
     let mut ret: Vec<Project> = vec![];
     let mut projects: HashMap<String, Vec<String>> = HashMap::new();
@@ -46,7 +48,9 @@ pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError
 
         let mut full_build_size: u64 = 0;
         let path = key.clone();
-        let build_dirs = value.iter().map(|v| {
+
+        // iter over build dirs
+        let build_dirs: Vec<ProjectDir> = value.iter().map(|v| {
             let size = get_size(format!("{}/{}", path, v)).expect("Failed to get size of directory");
             full_build_size += size;
             ProjectDir {
@@ -67,6 +71,8 @@ pub async fn find_projects(project_dir: String) -> Result<Vec<Project>, AppError
         });
     }
 
+    let duration = start.elapsed();
+    println!("finished in {:?}", duration);
     Ok(ret)
 }
 
@@ -101,13 +107,20 @@ fn get_project_type(dir_slice: &mut Vec<&str>) -> Vec<(usize, String)> {
 
 fn has_repeating_elements(input: &str) -> bool {
     let elements: Vec<&str> = PROJECT_TYPES.clone().into();
+    
+    // split is needed in case of string in string ex: out, zig-out
+    let input_vec: Vec<_> = input.split("/").collect();
     for i in 0..elements.len() {
-        if input.contains(elements[i]) {
-            if input.matches(elements[i]).count() >= 2 {
+        // check if input contains project type
+        if input_vec.contains(&elements[i]) {
+            // check if appears more than once
+            if input.matches(&elements[i]).count() >= 2 {
                 return true;
             }
+
+            // iter over the rest of elements
             for j in i + 1..elements.len() {
-                if input.contains(elements[j]) {
+                if input_vec.contains(&elements[j]) {
                     return true;
                 }
             }
