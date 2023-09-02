@@ -113,7 +113,6 @@
 </script>
 
 <div>
-  <Button variant="default" on:click={cancelFn} class="inline-block">Cancel Function</Button>
   <ProjectChoose 
     bind:selectedDir={selectedDirClone}
     bind:config={config}
@@ -129,7 +128,7 @@
     {#if !isLoading}
       <Button variant="default" on:click={selectDirDialog} class="inline-block">Select Directory</Button>
     {:else}
-      <Button variant="default" class="inline-block" disabled>Select Directory</Button>
+      <Button variant="default" on:click={cancelFn} class="inline-block">Cancel</Button>
     {/if}
   </div>
 
