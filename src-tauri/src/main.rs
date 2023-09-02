@@ -2,9 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
 use once_cell::sync::Lazy;
+use tauri::Manager;
 
 mod commands;
 
@@ -84,8 +86,19 @@ pub struct Project {
     language: String,
 }
 
+pub struct CancelState(Arc<Mutex<bool>>);
+
 fn main() {
     tauri::Builder::default()
+        .manage(CancelState(Arc::new(Mutex::new(false))))
+        .setup(|app| {
+            let state_guard = &app.state::<CancelState>().0;
+            let state_clone = state_guard.clone();
+            app.listen_global("cancel-fn", move |_event| {
+                *state_clone.lock().unwrap() = true;
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::projects::find_projects
         ])
@@ -96,6 +109,7 @@ fn main() {
 #[derive(Serialize)]
 pub enum AppError {
     IoError(String),
+    Cancel(String),
     NoneError(()),
 }
 

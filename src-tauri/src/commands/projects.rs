@@ -3,10 +3,11 @@ use std::{collections::HashMap, str::FromStr};
 
 use fs_extra::dir::get_size;
 use serde::Serialize;
-use tauri::Window;
+use tauri::{Window, State};
 use walkdir::WalkDir;
+use tokio_util::sync::CancellationToken;
 
-use crate::{Project, AppError, PROJECT_TYPES, ProjectTypes, ProjectDir};
+use crate::{Project, AppError, PROJECT_TYPES, ProjectTypes, ProjectDir, CancelState};
 
 #[derive(Serialize, Clone)]
 struct SearchFilesPayload {
@@ -20,20 +21,59 @@ struct LoadingStatusPayload {
 }
 
 #[tauri::command]
-pub async fn find_projects(project_dir: String, window: Window) -> Result<Vec<Project>, AppError> {
+pub async fn find_projects(project_dir: String, window: Window, cancel_state: State<'_, CancelState>) -> Result<Vec<Project>, AppError> {
+    // create token for cancelation;
+    let token = CancellationToken::new();
+    let cloned_token = token.clone();
+
+    // Start handle to finish as cancel token or desired function
+    let handle = tokio::spawn(async move {
+        tokio::select! {
+            _ = cloned_token.cancelled() => Err(AppError::Cancel("Command was canceled".to_owned())),
+            val = find_projects_handle(project_dir, window) => val
+        }
+    });
+
+    let state_guard = &cancel_state.0;
+    let state_clone = state_guard.clone();
+    tokio::spawn(async move {
+        // check every 100ms if state changed then cancel handle
+        loop {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            let state = *state_clone.lock().unwrap();
+            if state == true {
+                *state_clone.lock().unwrap() = false;
+                token.cancel();
+                break;
+            }
+            drop(state);
+        }
+    });
+
+    handle.await.unwrap()
+}
+pub async fn find_projects_handle(
+    project_dir: String,
+    window: Window,
+) -> Result<Vec<Project>, AppError> {
     let start = std::time::Instant::now();
     window.emit("loading-status", LoadingStatusPayload { status: true, duration: Duration::from_secs(0) }).unwrap();
     window.emit("search-files", SearchFilesPayload { message: "Searching...".into() }).unwrap();
 
-    let mut vector: Vec<String> = list_projects(project_dir);
+    let vector: Vec<String> = tokio::spawn(async move {
+        list_projects(project_dir).await
+    }).await.unwrap_or(Vec::new());
     let mut ret: Vec<Project> = vec![];
     let mut projects: HashMap<String, Vec<String>> = HashMap::new();
 
-    for item in &mut vector {
+    for item in vector {
         // Path in vec. example:
         // /home/user/Projects -> ["home", "user", "Projects"]
-        let mut dir_slice: Vec<&str> = item.split('/').collect();
-        let arr: Vec<(usize, String)> = get_project_type(&mut dir_slice);
+        let mut dir_slice: Vec<String> = item.split("/").map(std::string::ToString::to_string).collect::<Vec<String>>();
+        let dir_slice_clone: Vec<String> = dir_slice.clone();
+        let arr: Vec<(usize, String)> = tokio::spawn(async move {
+            get_project_type(dir_slice_clone).await
+        }).await.unwrap_or(Vec::new());
 
         // index of the target folder and name of that folder
         let target_index: &(usize, String) = arr.get(0).unwrap();
@@ -55,7 +95,7 @@ pub async fn find_projects(project_dir: String, window: Window) -> Result<Vec<Pr
         }
     }
 
-    for (key, value) in projects.iter() {
+    for (key, value) in projects.into_iter() {
         let path = key.clone();
         let name = path.split('/').last().unwrap().to_owned();
 
@@ -68,9 +108,9 @@ pub async fn find_projects(project_dir: String, window: Window) -> Result<Vec<Pr
         }
 
         let mut full_build_size: u64 = 0;
-        window.emit("search-files", SearchFilesPayload { message: format!("Fetching build dirs from: '{}'...", name).into() }).unwrap();
 
         // iter over build dirs
+        window.emit("search-files", SearchFilesPayload { message: format!("Fetching build dirs from: '{}'...", name).into() }).unwrap();
         let build_dirs: Vec<ProjectDir> = value.iter().map(|v| {
             let size = get_size(format!("{}/{}", path, v)).expect("Failed to get size of directory");
             full_build_size += size;
@@ -81,7 +121,10 @@ pub async fn find_projects(project_dir: String, window: Window) -> Result<Vec<Pr
         }).collect();
 
         window.emit("search-files", SearchFilesPayload { message: format!("Getting language of: '{}'...", name).into() }).unwrap();
-        let language = get_language_in_project(key, build_dirs.clone()).to_string();
+        let build_dirs_clone = build_dirs.clone();
+        let language = tokio::spawn(async move {
+            get_language_in_project(&key, build_dirs_clone).await.to_string()
+        }).await.unwrap_or(loc::Lang::Unrecognized.to_string());
 
         ret.push(Project {
             name,
@@ -93,13 +136,12 @@ pub async fn find_projects(project_dir: String, window: Window) -> Result<Vec<Pr
         });
     }
 
-    let duration = start.elapsed();
     window.emit("search-files", SearchFilesPayload { message: "Finished.".into() }).unwrap();
     window.emit("loading-status", LoadingStatusPayload { status: false, duration: start.elapsed() }).unwrap();
     Ok(ret)
 }
 
-fn list_projects(project_dir: String) -> Vec<String> {
+async fn list_projects(project_dir: String) -> Vec<String> {
     let mut vector: Vec<String> = Vec::new();
 
     // Iterate over selected dir
@@ -116,7 +158,7 @@ fn list_projects(project_dir: String) -> Vec<String> {
     vector
 }
 
-fn get_project_type(dir_slice: &mut Vec<&str>) -> Vec<(usize, String)> {
+async fn get_project_type(dir_slice: Vec<String>) -> Vec<(usize, String)> {
     let mut arr: Vec<(usize, String)> = Vec::new();
     PROJECT_TYPES.iter().all(|v| {
         let index = dir_slice.iter().position(|p| p == v);
@@ -152,7 +194,7 @@ fn has_repeating_elements(input: &str) -> bool {
     false
 }
 
-fn get_language_in_project(dir: &String, build_dirs: Vec<ProjectDir>) -> loc::Lang {
+async fn get_language_in_project(dir: &String, build_dirs: Vec<ProjectDir>) -> loc::Lang {
     let mut total: Vec<loc::Lang> = Default::default();
     let full_project_dirs: Vec<String> = build_dirs.iter().map(|v| v.dir.to_string()).collect();
 

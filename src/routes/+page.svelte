@@ -17,7 +17,7 @@
 
   // tauri functions
   import { invoke } from "@tauri-apps/api/tauri";
-  import { listen } from '@tauri-apps/api/event';
+  import { emit, listen } from '@tauri-apps/api/event';
   import { open } from '@tauri-apps/api/dialog';
   import { BaseDirectory, writeTextFile } from "@tauri-apps/api/fs";
 
@@ -71,9 +71,16 @@
       sortByType(config, projectDirs);
       projectCache.set(selectedDir as string, projectDirs!);
       await writeTextFile('projects.json', JSON.stringify(Object.fromEntries(projectCache)), { dir: BaseDirectory.AppConfig });
-    } catch(error) {
+    } catch(error: any) {
       console.error(error)
+      if (error.hasOwnProperty("Cancel")) {
+        isLoading = false;
+      }
     }
+  }
+
+  async function cancelFn() {
+    await emit("cancel-fn");
   }
 
   // function shorten_string(str: string, max_length: number): string {
@@ -106,6 +113,7 @@
 </script>
 
 <div>
+  <Button variant="default" on:click={cancelFn} class="inline-block">Cancel Function</Button>
   <ProjectChoose 
     bind:selectedDir={selectedDirClone}
     bind:config={config}
